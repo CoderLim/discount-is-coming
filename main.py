@@ -32,7 +32,7 @@ def get_transformed_url(origin_url):
     global cookies
     body = '{%22promotionUrl%22:%22' + urllib.parse.quote_plus(origin_url) + '%22}'
     url = transform_url_tpl % body
-    res = requests.get(url, cookies=cookies)
+    res = requests.get(url, cookies=cookies, verify=False)
     result = json.loads(res.content)
     if result['success']:
         return result['data']['pushUrl']
@@ -41,8 +41,7 @@ def get_transformed_url(origin_url):
 # print all groups
 print(bot.groups())
 
-source_group = [get_group_by_name('A京东内购')]
-target_group = get_group_by_name('网购内部优惠群')
+source_group = [get_group_by_name('')]
 target = bot.self
 
 @bot.register(source_group)
@@ -82,7 +81,7 @@ def print_others(msg):
     global bot
     global tuling
     print(msg)
-    if isinstance(msg.chat, Group) and msg.sender.name == '网购内部优惠群' and msg.is_at:
+    if isinstance(msg.chat, Group) and msg.sender.name == '' and msg.is_at:
         tuling.do_reply(msg)
 
 # go into python repl
