@@ -8,8 +8,9 @@ import requests
 from wxpy import *
 
 bot = Bot()
-pre_msg = None
+tuling = Tuling(api_key='aa1e0ddcc7ba44bdbea9d94123305533')
 
+pre_msg = None
 pt_key = 'app_openAAFaFskoADCkcV5Fj9xb5BrEKok-3JQBQ9ZEiGnzuYzBwr3LtftuU_28nEs5WsrPzrsHoHto-pM'
 rbuy_url = r'https?://union-click.jd.com/jdc\?d=\w+'
 cookies = {'pt_key': pt_key, 'pt_pin':'15201590338_p'}
@@ -19,11 +20,12 @@ def get_group_by_name(name):
     global bot
     groups = bot.groups()
     target = groups.search(name)
+    # this is not working
     while not target:
         print('%s Not Found, Wait 10 Seconds' % name)
         time.sleep(10)
         target = groups.search(name)
-    return target
+    return ensure_one(target)
 
 def get_transformed_url(origin_url):
     global transform_url_tpl
@@ -32,7 +34,6 @@ def get_transformed_url(origin_url):
     url = transform_url_tpl % body
     res = requests.get(url, cookies=cookies)
     result = json.loads(res.content)
-    print(result)
     if result['success']:
         return result['data']['pushUrl']
     return None
@@ -40,7 +41,7 @@ def get_transformed_url(origin_url):
 # print all groups
 print(bot.groups())
 
-source_group = [get_group_by_name('A京东内购'), get_group_by_name('京东内部优惠抢购群')]
+source_group = [get_group_by_name('A京东内购')]
 target_group = get_group_by_name('网购内部优惠群')
 target = bot.self
 
@@ -51,15 +52,15 @@ def forward_source_message(msg):
     msg_text = msg.text
     # original buy url 
     origin_url = re.search(rbuy_url, msg_text).group()
+    print('origin_url=%s' % origin_url)
     if origin_url:
         new_url = get_transformed_url(origin_url)
+        print('new_url=%s' % new_url)
         if new_url:
-            print('origin_url' % origin_url)
-            print('new_url=%s' % new_url)
             # replace original buy url with new buy url 
-            msg.text = re.sub(rbuy_url, new_url, msg_text)
+            new_text = re.sub(rbuy_url, new_url, msg_text)
             # retweet this message
-            msg.forward(target, prefix='buy buy buy:')
+            target.send_msg(new_text)
         else:
             print('Transform Failed!')
             pre_msg = None
@@ -78,8 +79,11 @@ def forward_source_message(msg):
 
 @bot.register()
 def print_others(msg):
-    current_msg = msg
+    global bot
+    global tuling
     print(msg)
+    if isinstance(msg.chat, Group) and msg.sender.name == '网购内部优惠群' and msg.is_at:
+        tuling.do_reply(msg)
 
 # go into python repl
 embed()
