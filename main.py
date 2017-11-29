@@ -28,6 +28,7 @@ def get_group_by_name(name):
     return ensure_one(target)
 
 def get_transformed_url(origin_url):
+    global bot
     global transform_url_tpl
     global cookies
     body = '{%22promotionUrl%22:%22' + urllib.parse.quote_plus(origin_url) + '%22}'
@@ -35,39 +36,45 @@ def get_transformed_url(origin_url):
     res = requests.get(url, cookies=cookies, verify=False)
     result = json.loads(res.content)
     if result['success']:
-        return result['data']['pushUrl']
+        if result['data']:
+            return result['data']['pushUrl']
+        else:
+            err_msg = '{} : {}'.format(origin_url, result['err_msg'])
+            print(err_msg)
+            bot.self.send_msg(err_msg)
     return None
 
 # print all groups
 print(bot.groups())
 
-source_group = [get_group_by_name('')]
+source_group = get_group_by_name('A京东内购')
 target = bot.self
 
 @bot.register(source_group)
 def forward_source_message(msg):
+    global target
     global pre_msg
     global rbuy_url
     msg_text = msg.text
-    # original buy url 
-    origin_url = re.search(rbuy_url, msg_text).group()
-    print('origin_url=%s' % origin_url)
+    # original buy url
+    origin_url = None
+    if msg.type == TEXT:
+        match = re.search(rbuy_url, msg_text)
+        origin_url = (match.group() if match else None)
     if origin_url:
         new_url = get_transformed_url(origin_url)
-        print('new_url=%s' % new_url)
         if new_url:
-            # replace original buy url with new buy url 
+            # replace original buy url with new buy url
             new_text = re.sub(rbuy_url, new_url, msg_text)
             # retweet this message
-            target.send_msg(new_text)
+            target.send(new_text)
         else:
-            print('Transform Failed!')
             pre_msg = None
 
         # if previous message is a PICTURE, then retweet
         # and make pre_msg=None to prevent retweeting again
         if pre_msg and pre_msg.type == PICTURE:
-            msg.forward(target)
+            pre_msg.forward(target)
             pre_msg = None
 
     # if previous message exists and is a goods detail, then current message should be a PICTURE, retweet it
@@ -77,12 +84,16 @@ def forward_source_message(msg):
 
 
 @bot.register()
-def print_others(msg):
+def tackle_message(msg):
     global bot
     global tuling
     print(msg)
-    if isinstance(msg.chat, Group) and msg.sender.name == '' and msg.is_at:
-        tuling.do_reply(msg)
+    if isinstance(msg.chat, Group):
+        group_name = msg.sender.name
+        if group_name == '<Group_Name>' and msg.is_at:
+            tuling.do_reply(msg)
+        elif group_name in ('<Group_Name>'):
+            forward_source_message(msg)
 
 # go into python repl
 embed()
